@@ -49,6 +49,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// API Routes - THESE COME FIRST
+app.use("/api/jobs", require("./routes/jobs"));
+app.use("/api/interviews", require("./routes/interviews"));
+
 // Health check endpoint with database check
 app.get("/health", async (req, res) => {
   const healthStatus = {
@@ -70,22 +74,6 @@ app.get("/health", async (req, res) => {
     console.error("Health check - DB error:", error.message);
     res.status(200).json(healthStatus);
   }
-});
-
-// Root endpoint
-app.get("/", (req, res) => {
-  res.json({ 
-    message: "JobTracker API Server",
-    status: "Running",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    endpoints: {
-      jobs: "/api/jobs",
-      interviews: "/api/interviews",
-      health: "/health",
-      testDb: "/api/test-db"
-    }
-  });
 });
 
 // Test database connection endpoint
@@ -117,39 +105,109 @@ app.get("/api/test-db", async (req, res) => {
   }
 });
 
-// API Routes - wrapped in try-catch for better error handling
-app.use("/api/jobs", (req, res, next) => {
-  try {
-    require("./routes/jobs")(req, res, next);
-  } catch (error) {
-    console.error("Jobs route error:", error);
-    res.status(500).json({ error: "Jobs route initialization failed", message: error.message });
-  }
-});
+// Root API endpoint - ONLY in development
+if (process.env.NODE_ENV !== "production") {
+  app.get("/", (req, res) => {
+    res.json({ 
+      message: "JobTracker API Server",
+      status: "Running",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      endpoints: {
+        jobs: "/api/jobs",
+        interviews: "/api/interviews",
+        health: "/health",
+        testDb: "/api/test-db"
+      }
+    });
+  });
+}
 
-app.use("/api/interviews", (req, res, next) => {
-  try {
-    require("./routes/interviews")(req, res, next);
-  } catch (error) {
-    console.error("Interviews route error:", error);
-    res.status(500).json({ error: "Interviews route initialization failed", message: error.message });
-  }
-});
-
-// Serve static files in production
+// Serve static files in production - THIS MUST BE LAST before error handlers
 if (process.env.NODE_ENV === "production") {
-  const clientBuildPath = path.join(__dirname, "../client/build");
-  
-  // Check if build directory exists
   const fs = require("fs");
+  
+  // The build folder is created at root level by Render's build process
+  // Server runs from /server, so we need to go up two levels
+  const clientBuildPath = path.join(__dirname, "../../client/build");
+  
+  console.log("Production mode - Looking for client build...");
+  console.log("Expected path:", clientBuildPath);
+  console.log("Current directory:", __dirname);
+  
+  // Check parent directory structure for debugging
+  try {
+    const parentDir = path.join(__dirname, "../..");
+    console.log("Root directory contents:", fs.readdirSync(parentDir));
+    
+    const clientDir = path.join(__dirname, "../../client");
+    if (fs.existsSync(clientDir)) {
+      console.log("Client directory contents:", fs.readdirSync(clientDir));
+    }
+  } catch (e) {
+    console.error("Error reading directory structure:", e.message);
+  }
+  
   if (fs.existsSync(clientBuildPath)) {
+    console.log("✅ Client build directory found!");
+    
+    // Serve static files from React build
     app.use(express.static(clientBuildPath));
     
+    // Handle React routing - return all requests to React app
+    // This MUST be after all API routes
     app.get("*", (req, res) => {
-      res.sendFile(path.join(clientBuildPath, "index.html"));
+      const indexPath = path.join(clientBuildPath, "index.html");
+      console.log(`Serving React app for route: ${req.path}`);
+      
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        console.error("index.html not found at:", indexPath);
+        res.status(404).json({ 
+          error: "Application build not found",
+          message: "The React application build files are missing."
+        });
+      }
     });
   } else {
-    console.log("Client build directory not found, serving API only");
+    console.error("❌ Client build directory NOT found!");
+    console.log("Build process may have failed or path is incorrect.");
+    
+    // Check alternative possible paths
+    const alternativePaths = [
+      path.join(__dirname, "../client/build"),
+      path.join(__dirname, "./build"),
+      path.join(__dirname, "../build"),
+      "/opt/render/project/src/client/build"
+    ];
+    
+    console.log("Checking alternative paths:");
+    alternativePaths.forEach(altPath => {
+      if (fs.existsSync(altPath)) {
+        console.log(`✅ Found build at alternative path: ${altPath}`);
+        console.log("   Update the clientBuildPath to use this path!");
+      } else {
+        console.log(`❌ Not found: ${altPath}`);
+      }
+    });
+    
+    // Fallback to API-only mode
+    app.get("/", (req, res) => {
+      res.json({ 
+        message: "JobTracker API Server",
+        status: "Running (Frontend not found)",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+        error: "React build not found - API only mode",
+        endpoints: {
+          jobs: "/api/jobs",
+          interviews: "/api/interviews",
+          health: "/health",
+          testDb: "/api/test-db"
+        }
+      });
+    });
   }
 }
 
@@ -201,13 +259,18 @@ const startServer = async () => {
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🌐 URL: ${process.env.NODE_ENV === 'production' ? 'https://job-tracker-xgcm.onrender.com' : `http://localhost:${PORT}`}`);
     console.log("\n📋 Available endpoints:");
-    console.log("  - GET  /");
     console.log("  - GET  /health");
     console.log("  - GET  /api/test-db");
     console.log("  - GET  /api/jobs");
     console.log("  - POST /api/jobs");
     console.log("  - GET  /api/interviews");
     console.log("  - POST /api/interviews");
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("  - GET  / (API info)");
+    } else {
+      console.log("  - GET  /* (React app)");
+    }
   });
 };
 
