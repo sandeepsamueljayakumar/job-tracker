@@ -1,0 +1,17 @@
+{
+  "extends": [
+    "react-app"
+  ],
+  "rules": {
+    "no-unused-vars": "error",
+    "no-console": "warn",
+    "prefer-const": "error",
+    "quotes": ["error", "double"],
+    "semi": ["error", "always"],
+    "react/prop-types": "error",
+    "react/jsx-uses-react": "error",
+    "react/jsx-uses-vars": "error",
+    "react/jsx-pascal-case": "error",
+    "react/jsx-closing-bracket-location": "error"
+  }
+}
