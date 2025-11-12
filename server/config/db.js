@@ -5,34 +5,35 @@ let client = null;
 
 const connectDB = async () => {
   try {
-    const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/jobtracker";
+    const uri = process.env.MONGODB_URI;
     
-    // Simple options that work with MongoDB Atlas
+    if (!uri) {
+      throw new Error("MONGODB_URI is not defined in environment variables");
+    }
+    
+    console.log("Attempting to connect to MongoDB...");
+    console.log("URI format check:", uri.startsWith("mongodb+srv://") ? "Valid SRV format" : "Check URI format");
+    
+    // Simplified options for MongoDB Atlas
     const options = {
-      tls: true,
-      tlsAllowInvalidCertificates: true,
-      tlsAllowInvalidHostnames: true,
-      retryWrites: true,
-      w: 'majority'
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
     };
 
     client = new MongoClient(uri, options);
 
     await client.connect();
-    console.log("Connected to MongoDB!");
+    console.log("✅ Connected to MongoDB successfully!");
     
+    // Test the connection
     db = client.db("jobtracker");
+    await db.admin().ping();
+    console.log("✅ Database ping successful!");
+    
     return db;
   } catch (error) {
-    console.error("MongoDB connection error:", error.message);
-    // Keep server running even if DB fails initially
-    console.log("Server will continue running. MongoDB will retry connection...");
-    
-    // Retry connection after 10 seconds
-    setTimeout(() => {
-      console.log("Retrying MongoDB connection...");
-      connectDB();
-    }, 10000);
+    console.error("❌ MongoDB connection error:", error.message);
+    throw error; // Let server.js handle this
   }
 };
 
