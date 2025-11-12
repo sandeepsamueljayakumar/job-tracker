@@ -127,26 +127,13 @@ if (process.env.NODE_ENV !== "production") {
 if (process.env.NODE_ENV === "production") {
   const fs = require("fs");
   
-  // The build folder is created at root level by Render's build process
-  // Server runs from /server, so we need to go up two levels
-  const clientBuildPath = path.join(__dirname, "../../client/build");
+  // Render's structure: /opt/render/project/src/server -> /opt/render/project/src/client/build
+  // So we only need to go up ONE level from server to reach client
+  const clientBuildPath = path.join(__dirname, "../client/build");
   
   console.log("Production mode - Looking for client build...");
   console.log("Expected path:", clientBuildPath);
   console.log("Current directory:", __dirname);
-  
-  // Check parent directory structure for debugging
-  try {
-    const parentDir = path.join(__dirname, "../..");
-    console.log("Root directory contents:", fs.readdirSync(parentDir));
-    
-    const clientDir = path.join(__dirname, "../../client");
-    if (fs.existsSync(clientDir)) {
-      console.log("Client directory contents:", fs.readdirSync(clientDir));
-    }
-  } catch (e) {
-    console.error("Error reading directory structure:", e.message);
-  }
   
   if (fs.existsSync(clientBuildPath)) {
     console.log("✅ Client build directory found!");
@@ -176,7 +163,7 @@ if (process.env.NODE_ENV === "production") {
     
     // Check alternative possible paths
     const alternativePaths = [
-      path.join(__dirname, "../client/build"),
+      path.join(__dirname, "../../client/build"),
       path.join(__dirname, "./build"),
       path.join(__dirname, "../build"),
       "/opt/render/project/src/client/build"
@@ -186,7 +173,7 @@ if (process.env.NODE_ENV === "production") {
     alternativePaths.forEach(altPath => {
       if (fs.existsSync(altPath)) {
         console.log(`✅ Found build at alternative path: ${altPath}`);
-        console.log("   Update the clientBuildPath to use this path!");
+        console.log("   Consider updating the clientBuildPath to use this path!");
       } else {
         console.log(`❌ Not found: ${altPath}`);
       }
