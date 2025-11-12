@@ -7,13 +7,16 @@ const connectDB = async () => {
   try {
     const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/jobtracker";
     
-    // MongoDB connection options for production
-    const options = {
-      tls: true,
-      tlsAllowInvalidCertificates: true,
-      retryWrites: true,
-      w: 'majority'
-    };
+    // For production, use less strict SSL settings
+    const options = process.env.NODE_ENV === 'production' 
+      ? {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          tls: true,
+          tlsAllowInvalidCertificates: true,
+          tlsAllowInvalidHostnames: true,
+        }
+      : {};
 
     client = new MongoClient(uri, options);
 
@@ -23,8 +26,13 @@ const connectDB = async () => {
     db = client.db("jobtracker");
     return db;
   } catch (error) {
-    console.error("MongoDB connection error:", error);
-    throw error;
+    console.error("MongoDB connection error:", error.message);
+    // Don't throw in production, just log
+    if (process.env.NODE_ENV !== 'production') {
+      throw error;
+    }
+    // Try to reconnect after 5 seconds
+    setTimeout(() => connectDB(), 5000);
   }
 };
 
