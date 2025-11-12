@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient } = require("mongodb");
 
 let db = null;
 let client = null;
@@ -7,13 +7,15 @@ const connectDB = async () => {
   try {
     const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/jobtracker";
     
-    client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-      }
-    });
+    // MongoDB connection options for production
+    const options = {
+      tls: true,
+      tlsAllowInvalidCertificates: true,
+      retryWrites: true,
+      w: 'majority'
+    };
+
+    client = new MongoClient(uri, options);
 
     await client.connect();
     console.log("Connected to MongoDB!");
