@@ -1,7 +1,7 @@
 // Determine the API URL based on the environment
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api'  // In production, use relative path (same domain)
-  : 'http://localhost:5000/api'; // In development, use localhost
+const API_BASE_URL = process.env.NODE_ENV === "production" 
+  ? "/api"  // In production, use relative path (same domain)
+  : "http://localhost:5000/api"; // In development, use localhost
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
